@@ -19,13 +19,12 @@ int main() {
 
   while (!WindowShouldClose()) {
     // Handle shortcuts first
-    // TODO: set input polling timer for shortcuts so not
-    // keydown very quick
+    // 1 must be keydown so polling not too quick
     if (IsKeyDown(KEY_LEFT_SUPER))
     {
-      if(IsKeyDown(KEY_EQUAL) && (IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT)))
+      if(IsKeyPressed(KEY_EQUAL) && (IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT)))
         vt.buffers[vt.buffer_ix]->font_size++;
-      if (IsKeyDown(KEY_MINUS) && (IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT)))
+      if (IsKeyPressed(KEY_MINUS) && (IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT)))
         vt.buffers[vt.buffer_ix]->font_size--;
     }
     // Input
