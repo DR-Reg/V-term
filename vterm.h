@@ -11,6 +11,8 @@
 #include <sys/time.h>
 #include <fcntl.h>
 
+#include "Px437_IBM_VGA_8x16.h"
+
 #include <stdio.h>
 
 #define MAX_BUFFER_COUNT 16
