@@ -17,14 +17,20 @@ FetchContent_Declare(
 set(BUILD_EXAMPLES OFF CACHE INTERNAL "")
 FetchContent_MakeAvailable(raylib)
 
-# Add executable
+# Add executables
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
+add_executable(make_font_headers fonts/make_font_headers.c)
 
 # Link to libraries
 target_link_libraries(${PROJECT_NAME} raylib)
+target_link_libraries(make_font_headers raylib)
     
 if (APPLE)
     target_link_libraries(${PROJECT_NAME} "-framework IOKit")
     target_link_libraries(${PROJECT_NAME} "-framework Cocoa")
     target_link_libraries(${PROJECT_NAME} "-framework OpenGL")
+
+    target_link_libraries(make_font_headers "-framework IOKit")
+    target_link_libraries(make_font_headers "-framework Cocoa")
+    target_link_libraries(make_font_headers "-framework OpenGL")
 endif()

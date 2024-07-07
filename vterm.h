@@ -15,9 +15,15 @@
 
 #define MAX_BUFFER_COUNT 16
 #define VTermError(str) printf("%s", str " failed\n")
-// #define VTermError(str)                                                        \
-//   write(2, __FILE__ ":" __LINE__ " " str " failed",                       \
-//         sizeof(__FILE__ ":" __LINE__ " " str " failed"));
+
+#ifndef VTERM_C_SOURCE
+extern Font VTermTextFonts[21];
+#else
+Font VTermTextFonts[21];
+#endif
+
+#ifndef VTERM_H
+#define VTERM_H
 
 typedef enum {
   /* Regular VGA modes */
@@ -56,6 +62,7 @@ typedef struct {
   VTermMode mode; // Mode this buffer is using
   size_t buffer_size;
   uint16_t font_size;
+  Font font;
 } VTermDataBuffer;
 
 typedef struct {
@@ -84,3 +91,4 @@ bool VTermInitBuffer(VTerm *, uint16_t, VTermMode);
 void VTermCloseBuffer(VTermDataBuffer *);
 
 VTermDataBuffer *VTermGetCurrentBuffer(VTerm *);
+#endif

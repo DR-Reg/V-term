@@ -66,9 +66,15 @@ bool VTermInitPTY(VTermPTY *pty) {
 }
 
 bool VTermInit(VTerm *vt, const uint16_t width, const uint16_t height, VTermMode mode) {
+  uint16_t i;
   /***** INIT ALL BUFFERS TO NULL *****/
-  for (uint16_t i = 0; i < MAX_BUFFER_COUNT; i++)
+  for (i = 0; i < MAX_BUFFER_COUNT; i++)
     vt->buffers[i] = NULL;
+
+  /***** INITIALISE OUR FONTS LIST *****/
+  for (i = 0; i < 21; i++)
+    VTermTextFonts[i] = ;
+  
 
   /***** SET UP FIRST BUFFER *****/
   vt->pixel_width = width;
@@ -109,6 +115,7 @@ bool VTermInitBuffer(VTerm *vt, uint16_t bix, VTermMode mode) {
       buf->buffer_size = 40 * 25;
       buf->column_count = 40;
       buf->row_count = 25;
+      buf->font = VTermTextFonts[buf->mode];
       pty = true;
       break;
 
@@ -286,7 +293,7 @@ void VTermMoveCursorBy(int dx, int dy) {
   return;
 }
 
-bool VTermIncreaseFontSize(VTerm *vt, int32_t delta)
+void VTermIncreaseFontSize(VTerm *vt, int32_t delta)
 {
   VTermDataBuffer *buf = VTermGetCurrentBuffer(vt);
   buf->font_size += delta;
@@ -300,4 +307,11 @@ VTermDataBuffer *VTermGetCurrentBuffer(VTerm *vt)
     VTermError("bix >= MAX_BUFFER_COUNT");
   }
   return vt->buffers[vt->buffer_ix];
+}
+
+void VTermEnsureResolution(VTerm *vt)
+{
+  // TODO: check and implement this for gfx types
+  VTermDataBuffer *buf = VTermGetCurrentBuffer(vt);
+  vt->pixel_width = buf->column_count
 }
