@@ -1,3 +1,4 @@
+#define VTERM_C_SOURCE
 #include "vterm.h"
 
 bool VTermSpawnPTY(VTermPTY *pty) {
@@ -66,14 +67,22 @@ bool VTermInitPTY(VTermPTY *pty) {
 }
 
 bool VTermInit(VTerm *vt, const uint16_t width, const uint16_t height, VTermMode mode) {
+  /***** RAYLIB InitWindow MUST HAVE BEEN CALLED *****/
+  if (!IsWindowReady())
+  {
+    VTermError("Call Raylib's InitWindow before VTermInit");
+    return false;
+  }
+
   uint16_t i;
   /***** INIT ALL BUFFERS TO NULL *****/
   for (i = 0; i < MAX_BUFFER_COUNT; i++)
     vt->buffers[i] = NULL;
 
   /***** INITIALISE OUR FONTS LIST *****/
+  //  For now all use this font
   for (i = 0; i < 21; i++)
-    VTermTextFonts[i] = ;
+    VTermTextFonts[i] = LoadFont_Px437();
   
 
   /***** SET UP FIRST BUFFER *****/
@@ -109,13 +118,13 @@ bool VTermInitBuffer(VTerm *vt, uint16_t bix, VTermMode mode) {
 
   buf->col = 0;
   buf->row = 0;
+  buf->font = VTermTextFonts[buf->mode];
 
   switch (buf->mode) {
     case VTERM_MODE_MONOCHROME_TEXT_40_25:
       buf->buffer_size = 40 * 25;
       buf->column_count = 40;
       buf->row_count = 25;
-      buf->font = VTermTextFonts[buf->mode];
       pty = true;
       break;
 
@@ -241,7 +250,8 @@ bool VTermDraw(VTerm *vt)
   {
     char row_buf[buf->column_count + 1];
     // printf("row %d: 0x", row);
-    for (uint16_t col = 0; col < buf->column_count; col++)
+    uint16_t col;
+    for (col = 0; col < buf->column_count; col++)
     {
       if (row == buf->row && col >= buf->col)
       {
@@ -254,11 +264,14 @@ bool VTermDraw(VTerm *vt)
     }
     row_buf[buf->column_count] = 0;
     // printf(" | '%s'\n", row_buf);
-    DrawText(row_buf, 0, row * buf->font_size, buf->font_size, RAYWHITE);
+    // DrawText(row_buf, 0, row * buf->font_size, buf->font_size, RAYWHITE);
+    DrawTextEx(buf->font, row_buf, (Vector2){0, row*buf->font_size}, buf->font_size, 0, RAYWHITE);
 
     // TODO: when custom fonts, use measureEx
+    // For now as using Px437, can assume y = 2x
     if (row == buf->row)
-      last_row_x = MeasureText(row_buf, buf->font_size);
+      last_row_x = col * buf->font_size / 2;
+      // last_row_x = MeasureText(row_buf, buf->font_size);
   }
 
   // draw cursor:
@@ -313,5 +326,5 @@ void VTermEnsureResolution(VTerm *vt)
 {
   // TODO: check and implement this for gfx types
   VTermDataBuffer *buf = VTermGetCurrentBuffer(vt);
-  vt->pixel_width = buf->column_count
+  vt->pixel_width = buf->column_count;
 }
