@@ -17,7 +17,7 @@ int main() {
   // SetTargetFPS(60);
 
 
-  SetWindowState(FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_UNDECORATED);
+  SetWindowState(FLAG_WINDOW_UNDECORATED);
   SetExitKey(KEY_NULL);
 
   while (!WindowShouldClose()) {
@@ -26,9 +26,9 @@ int main() {
     if (IsKeyDown(KEY_LEFT_SUPER))
     {
       if(IsKeyPressed(KEY_EQUAL) && (IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT)))
-        vt.buffers[vt.buffer_ix]->font_size++;
+        VTermIncreaseFontSize(&vt, 1);
       if (IsKeyPressed(KEY_MINUS) && (IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT)))
-        vt.buffers[vt.buffer_ix]->font_size--;
+        VTermIncreaseFontSize(&vt, -1);
     }
     // Input
     if (!VTermSendInput(&vt))
@@ -45,7 +45,7 @@ int main() {
     if (!VTermDraw(&vt))
       return 2;
 
-    DrawFPS(width - 100, height-20);
+    DrawFPS(vt.pixel_width - 100, vt.pixel_height-20);
     EndDrawing();
   }
 

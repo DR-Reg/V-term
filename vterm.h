@@ -86,7 +86,7 @@ bool VTermUpdate(VTerm *);
 bool VTermDraw(VTerm *);
 bool VTermSendInput(VTerm *);
 
-void VTermIncreaseFontBy(VTerm *, int32_t);
+void VTermIncreaseFontSize(VTerm *, int32_t);
 void VTermEnsureResolution(VTerm *);
 
 bool VTermInitBuffer(VTerm *, uint16_t, VTermMode);

@@ -96,6 +96,8 @@ bool VTermInit(VTerm *vt, const uint16_t width, const uint16_t height, VTermMode
 
   vt->buffer_ix = 0;
 
+  VTermEnsureResolution(vt);
+
   return true;
 }
 
@@ -325,6 +327,9 @@ VTermDataBuffer *VTermGetCurrentBuffer(VTerm *vt)
 void VTermEnsureResolution(VTerm *vt)
 {
   // TODO: check and implement this for gfx types
+  // TODO: check for fullscreen (margin)
   VTermDataBuffer *buf = VTermGetCurrentBuffer(vt);
-  vt->pixel_width = buf->column_count;
+  vt->pixel_width = buf->column_count * buf->font_size/2;
+  vt->pixel_height = buf->row_count * buf->font_size;
+  SetWindowSize(vt->pixel_width, vt->pixel_height);
 }
