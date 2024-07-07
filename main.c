@@ -8,9 +8,12 @@ int main() {
   const uint16_t height = 450;
   VTerm vt;
 
-  VTermInit(&vt, width, height, VTERM_MODE_MONOCHROME_TEXT_40_25);
-
   InitWindow(width, height, "vterm");
+
+  if (!VTermInit(&vt, width, height, VTERM_MODE_MONOCHROME_TEXT_40_25))
+  {
+    return -1;
+  }
   // SetTargetFPS(60);
 
 
