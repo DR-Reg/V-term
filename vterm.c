@@ -286,9 +286,11 @@ void VTermMoveCursorBy(int dx, int dy) {
   return;
 }
 
-bool VTermIncreaseFontSize(VTerm *vt, float delta)
+bool VTermIncreaseFontSize(VTerm *vt, int32_t delta)
 {
   VTermDataBuffer *buf = VTermGetCurrentBuffer(vt);
+  buf->font_size += delta;
+  VTermEnsureResolution(vt);
 }
 
 VTermDataBuffer *VTermGetCurrentBuffer(VTerm *vt)
