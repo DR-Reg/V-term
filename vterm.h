@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <math.h>
+#include <string.h>
 #include <unistd.h>
 #include <sys/select.h>
 #include <sys/ioctl.h>

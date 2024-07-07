@@ -216,28 +216,31 @@ bool VTermUpdate(VTerm *vt)
     if (char_buf[0] == '\r') 
     {
       buf->col = 0;
-      return true;
     }
-    if (char_buf[0] == '\n') 
+    else if (char_buf[0] == '\n') 
     {
       buf->row++;
-      return true;
     }
-    if (char_buf[0] == '\b') 
+    else if (char_buf[0] == '\b') 
     {
       buf->col--;
-      return true;
     }
-
-    // Else: store in data buffer
-    buf->data[buf->col + buf->column_count * buf->row] = char_buf[0];
-    buf->col++;
+    else{
+      // Else: store in data buffer
+      buf->data[buf->col + buf->column_count * buf->row] = char_buf[0];
+      buf->col++;
+    }
     if (buf->col >= buf->column_count)
     {
       buf->col = 0;
       buf->row++;
-      if (buf->row > buf->row_count)
-        VTermError("TODO");
+      
+    }
+    if (buf->row >= buf->row_count)
+    {
+      memmove(buf->data, buf->data + buf->column_count, buf->buffer_size - buf->column_count);
+      memset(buf->data + buf->buffer_size - buf->column_count, 0, buf->column_count);
+      buf->row--;
     }
   }
   return true;
