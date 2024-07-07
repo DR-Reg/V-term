@@ -5,6 +5,7 @@ set(PROJECT_NAME vterm)
 project(${PROJECT_NAME} C)
 
 set(SOURCE_FILES main.c vterm.c)
+set(INCLUDE_DIRS fonts/headers)
 
 
 # Fetching raylib from github
@@ -24,6 +25,9 @@ add_executable(make_font_headers fonts/make_font_headers.c)
 # Link to libraries
 target_link_libraries(${PROJECT_NAME} raylib)
 target_link_libraries(make_font_headers raylib)
+
+# Include fonts
+target_include_directories(${PROJECT_NAME} PUBLIC ${INCLUDE_DIRS})
     
 if (APPLE)
     target_link_libraries(${PROJECT_NAME} "-framework IOKit")
