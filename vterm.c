@@ -297,8 +297,10 @@ bool VTermSendInput(VTerm *vt) {
     {
       case KEY_BACKSPACE:
         write(master, "\b", 1);
+        break;
       case KEY_ENTER:
         write(master, "\n", 1);
+        break;
     }
   }
   return true;
