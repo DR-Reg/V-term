@@ -45,7 +45,7 @@ int main() {
     if (!VTermDraw(&vt))
       return 2;
 
-    DrawFPS(vt.pixel_width - 100, vt.pixel_height-20);
+    DrawFPS(vt.pixel_width - 100, 0);
     EndDrawing();
   }
 
