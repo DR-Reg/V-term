@@ -156,7 +156,7 @@ bool VTermUpdate(VTerm *vt)
 {
   // TODO: check whether pty mode or not
   // TODO: key inputs
-  VTermDataBuffer *buf = vt->buffers[vt->buffer_ix];
+  VTermDataBuffer *buf = VTermGetCurrentBuffer(vt);
   VTermPTY *pty = &buf->pty;
   char char_buf[1];
 
@@ -227,7 +227,7 @@ bool VTermUpdate(VTerm *vt)
 
 bool VTermDraw(VTerm *vt)
 {
-  VTermDataBuffer *buf = vt->buffers[vt->buffer_ix];
+  VTermDataBuffer *buf = VTermGetCurrentBuffer(vt);
   // TODO: check if pty mode or not
   int last_row_x = 0;
   for (uint16_t row = 0; row <= buf->row; row++)
@@ -262,7 +262,7 @@ bool VTermDraw(VTerm *vt)
 
 bool VTermSendInput(VTerm *vt) {
   int ch, kc;
-  VTermDataBuffer *buf = vt->buffers[vt->buffer_ix];
+  VTermDataBuffer *buf = VTermGetCurrentBuffer(vt);
   int master = buf->pty.master;
   while ((ch = GetCharPressed()))
   {
@@ -284,4 +284,18 @@ bool VTermSendInput(VTerm *vt) {
 
 void VTermMoveCursorBy(int dx, int dy) {
   return;
+}
+
+bool VTermIncreaseFontSize(VTerm *vt, float delta)
+{
+  VTermDataBuffer *buf = VTermGetCurrentBuffer(vt);
+}
+
+VTermDataBuffer *VTermGetCurrentBuffer(VTerm *vt)
+{
+  if (vt->buffer_ix >= MAX_BUFFER_COUNT)
+  {
+    VTermError("bix >= MAX_BUFFER_COUNT");
+  }
+  return vt->buffers[vt->buffer_ix];
 }

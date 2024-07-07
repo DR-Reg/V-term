@@ -3,6 +3,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <math.h>
 #include <unistd.h>
 #include <sys/select.h>
 #include <sys/ioctl.h>
@@ -76,5 +77,9 @@ bool VTermUpdate(VTerm *);
 bool VTermDraw(VTerm *);
 bool VTermSendInput(VTerm *);
 
+bool VTermIncreaseFontBy(float);
+
 bool VTermInitBuffer(VTerm *, uint16_t, VTermMode);
 void VTermCloseBuffer(VTermDataBuffer *);
+
+VTermDataBuffer *VTermGetCurrentBuffer(VTerm *);
