@@ -19,10 +19,21 @@
 #define MAX_BUFFER_COUNT 16
 #define VTermError(str) printf("%s", str " failed\n")
 
+// fg bg are u32, n is u64
+#define PACK(fg, bg) ((uint64_t) fg << 32) | bg
+#define UNPACK_fg(n) (uint32_t)(n >> 32)
+#define UNPACK_bg(n) (uint32_t)(n)
+
 #ifndef VTERM_C_SOURCE
 extern Font VTermTextFonts[21];
 #else
 Font VTermTextFonts[21];
+uint32_t VTermANSIColors[8];
+bool previousWasEscape = false;
+bool previousWasWrap = false;
+bool previousWasCRAfterWrap = false;
+char currentEscapeBuf[32];
+int currentEscapeIx = -1;
 #endif
 
 #ifndef VTERM_H
@@ -50,6 +61,12 @@ typedef enum {
   VTERM_MODE_FULL_COLOR_MAX_RES = 20
 } VTermMode;
 
+typedef struct
+{
+  uint8_t count;
+  char args[32][32]; // at most 32 args of 32 length
+} VTermEscapeArgs;
+
 typedef struct {
   int master, slave;
   const char *shell;
@@ -57,6 +74,7 @@ typedef struct {
 
 typedef struct {
   uint8_t *data;
+  uint64_t *fgbg_colors;
   uint16_t column_count;
   uint16_t row_count;
   uint16_t col;
@@ -65,6 +83,13 @@ typedef struct {
   VTermMode mode; // Mode this buffer is using
   size_t buffer_size;
   uint16_t font_size;
+
+  // uint32_t fg_color;  // in gfx used as pixel to draw color
+  // uint32_t bg_color;  // in gfx used as clear color
+  // Packed:
+  uint64_t fgbg_color;
+  uint64_t default_fgbg;
+
   Font font;
 } VTermDataBuffer;
 
@@ -76,6 +101,7 @@ typedef struct {
   uint16_t buffer_ix; // current buffer index
 } VTerm;
 
+
 bool VTermInit(VTerm *, const uint16_t, const uint16_t, VTermMode);
 bool VTermSpawn(VTerm *);
 bool VTermInitPTY(VTermPTY *);
@@ -86,6 +112,8 @@ bool VTermSpawnPTY(VTermPTY *);
 bool VTermUpdate(VTerm *);
 bool VTermDraw(VTerm *);
 bool VTermSendInput(VTerm *);
+
+bool VTermExecuteEscapeCode(VTermDataBuffer *, char *, int);
 
 void VTermIncreaseFontSize(VTerm *, int32_t);
 void VTermEnsureResolution(VTerm *);
