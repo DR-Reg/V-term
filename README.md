@@ -1,6 +1,12 @@
 # V-term
 A terminal emulator with support for VGA graphics (see gfx modes below).
 
+## Building
+```
+cd build
+cmake ..
+make vterm
+```
 This is a personal project and work in progress (see TODO below)
 # TODO
 - [ ] pty modes
