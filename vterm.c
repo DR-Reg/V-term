@@ -254,12 +254,30 @@ bool VTermExecuteEscapeCode(VTermDataBuffer *buf, char *escape, int escape_len)
   switch (escape[escape_len - 1])
   {
     case 'H':
-      buf->col = 0;
-      buf->row = 0;
+      VTermGetEscapeCodeArgs(&args, escape, escape_len - 1);
+      if (args.count == 0)
+      {
+        buf->row = 0;
+        buf->col = 0;
+      } else if (args.count == 1)
+      {
+        sscanf(args.args[0], "%hd", &buf->row);
+        buf->row--; // xterm row/col start at 1
+        buf->col = 0;
+      } else {
+        sscanf(args.args[0], "%hd", &buf->row);
+        sscanf(args.args[1], "%hd", &buf->col);
+        buf->row--; // xterm row/col start at 1
+        buf->col--; // xterm row/col start at 1
+      }
+
+      buf->row %= buf->row_count;
+      buf->col %= buf->column_count;
       goto success;
     case 'J':
       memset(buf->data, 0, buf->buffer_size);
       goto success;
+      
     case 'h':
     case 'l':
       // VTermGetEscapeCodeArgs(&args, escape + 1, escape_len - 2);
