@@ -246,9 +246,70 @@ void VTermPrintEscapeCode(char *escape, VTermEscapeArgs *args)
   printf("\n");
 }
 
+bool VTermResetBufferData(VTermDataBuffer *buf, uint16_t row, uint16_t col, VTermResetBufferDataDir dir)
+{
+  if (dir == VTERM_RESET_BUFFER_DATA_ALL)
+  {
+    if (!VTermResetBufferData(buf, row, col, VTERM_RESET_BUFFER_DATA_BACKWARDS))
+    {
+      VTermError("VTermResetBufferData(buf, row, col, VTERM_RESET_BUFFER_DATA_BACKWARS)");
+      return false;
+    }
+    if (!VTermResetBufferData(buf, row, col, VTERM_RESET_BUFFER_DATA_FORWARDS))
+    {
+      VTermError("VTermResetBufferData(buf, row, col, VTERM_RESET_BUFFER_DATA_FORWARDS)");
+      return false;
+    }
+  }
+  else if (dir == VTERM_RESET_BUFFER_DATA_FORWARDS)
+  {
+    nmemset(buf->data + row * buf->column_count + col, 
+             0, 
+             buf->buffer_size - (row * buf->column_count + col));
+    nmemset(buf->fgbg_colors + row * buf->column_count + col, 
+             buf->default_fgbg, 
+             buf->buffer_size - (row * buf->column_count + col));
+  } else if (dir == VTERM_RESET_BUFFER_DATA_BACKWARDS)
+  {
+    nmemset(buf->data, 
+             0, 
+             row * buf->column_count + col);
+    nmemset(buf->fgbg_colors, 
+             buf->default_fgbg, 
+             row * buf->column_count + col);
+  }
+  else if (dir == VTERM_RESET_BUFFER_DATA_UP)
+  {
+    if (row <= 0) return true;
+    nmemset(buf->data, 
+             0, 
+             (row - 1) * buf->column_count);
+    nmemset(buf->fgbg_colors, 
+             buf->default_fgbg, 
+             (row - 1) * buf->column_count);
+  }
+   else if (dir == VTERM_RESET_BUFFER_DATA_DOWN)
+  {
+    if (row >= buf->row_count - 1) return true;
+    nmemset(buf->data + (row + 1) * buf->column_count, 
+             0, 
+             buf->buffer_size - ((row + 1) * buf->column_count));
+    nmemset(buf->fgbg_colors + (row + 1) * buf->column_count, 
+             buf->default_fgbg, 
+             buf->buffer_size - ((row + 1) * buf->column_count));
+  }
+  else {
+    VTermError("Invalid enum VTermResetBufferDataDir");
+    return false;
+  }
+
+  return true;
+}
+
 bool VTermExecuteEscapeCode(VTermDataBuffer *buf, char *escape, int escape_len)
 {
   VTermEscapeArgs args;
+  VTermResetBufferDataDir dir;
   
 
   switch (escape[escape_len - 1])
@@ -275,9 +336,53 @@ bool VTermExecuteEscapeCode(VTermDataBuffer *buf, char *escape, int escape_len)
       buf->col %= buf->column_count;
       goto success;
     case 'J':
-      memset(buf->data, 0, buf->buffer_size);
-      goto success;
+      // we don't support selective erase for now, go to success
+      if (escape[0] == '?')
+        goto success;
+
+      VTermGetEscapeCodeArgs(&args, escape, escape_len - 1);
+
+
+      if (args.count == 0) // default: erase below
+        dir = VTERM_RESET_BUFFER_DATA_DOWN;
+      else if (args.args[0][0] == '0')
+        dir = VTERM_RESET_BUFFER_DATA_DOWN;
+      else if (args.args[0][0] == '1')
+        dir = VTERM_RESET_BUFFER_DATA_UP;
+      else if (args.args[0][0] == '2')
+        dir = VTERM_RESET_BUFFER_DATA_ALL;
+      else if (args.args[0][0] == '3')
+        // history not implemented, just go to success for now
+        goto success;
       
+      if (!VTermResetBufferData(buf, buf->row, buf->col, dir))
+      {
+        VTermError("VTermResetBufferData(buf, buf->row, buf->col, dir)");
+        return false;
+      }
+      goto success;
+    case 'K':
+      // we don't support selective erase for now, go to success
+      if (escape[0] == '?')
+        goto success;
+
+      VTermGetEscapeCodeArgs(&args, escape, escape_len - 1);
+
+      if (args.count == 0) // default: erase below
+        dir = VTERM_RESET_BUFFER_DATA_FORWARDS;
+      else if (args.args[0][0] == '0')
+        dir = VTERM_RESET_BUFFER_DATA_FORWARDS;
+      else if (args.args[0][0] == '1')
+        dir = VTERM_RESET_BUFFER_DATA_BACKWARDS;
+      else if (args.args[0][0] == '2')
+        dir = VTERM_RESET_BUFFER_DATA_ALL;
+      
+      if (!VTermResetBufferData(buf, buf->row, buf->col, dir))
+      {
+        VTermError("VTermResetBufferData(buf, buf->row, buf->col, dir)");
+        return false;
+      }
+      goto success;
     case 'h':
     case 'l':
       // VTermGetEscapeCodeArgs(&args, escape + 1, escape_len - 2);

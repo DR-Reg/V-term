@@ -24,6 +24,8 @@
 #define UNPACK_fg(n) (uint32_t)(n >> 32)
 #define UNPACK_bg(n) (uint32_t)(n)
 
+#define nmemset(ptr, val, count) memset(ptr, val, sizeof(*(ptr)) * (count))
+
 #ifndef VTERM_C_SOURCE
 extern Font VTermTextFonts[21];
 #else
@@ -120,6 +122,16 @@ void VTermEnsureResolution(VTerm *);
 
 bool VTermInitBuffer(VTerm *, uint16_t, VTermMode);
 void VTermCloseBuffer(VTermDataBuffer *);
+
+typedef enum {
+  VTERM_RESET_BUFFER_DATA_FORWARDS,
+  VTERM_RESET_BUFFER_DATA_BACKWARDS,
+  VTERM_RESET_BUFFER_DATA_UP,
+  VTERM_RESET_BUFFER_DATA_DOWN,
+  VTERM_RESET_BUFFER_DATA_ALL,
+} VTermResetBufferDataDir;
+
+bool VTermResetBufferData(VTermDataBuffer *, uint16_t, uint16_t, VTermResetBufferDataDir);
 
 VTermDataBuffer *VTermGetCurrentBuffer(VTerm *);
 #endif
