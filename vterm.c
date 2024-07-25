@@ -398,17 +398,19 @@ bool VTermExecuteEscapeCode(VTermDataBuffer *buf, char *escape, int escape_len)
       // todo
       if (args.count > 0)
       {
-        // TODO: various args
-        // convert to num:
-        uint16_t n;
-        sscanf(args.args[0], "%hd", &n);
-        if (n == 0)
-          buf->fgbg_color = buf->default_fgbg;
-        // TODO: 
-        // else if (args.args[0] % 10 == 8)
-        else if (n % 10 <= 7)
-          buf->fgbg_color = (uint64_t) VTermANSIColors[n % 10] << 32 | UNPACK_bg(buf->fgbg_color);
-        printf("%8x%08x | %8x = %16llx\n", VTermANSIColors[n % 10],0, UNPACK_bg(buf->fgbg_color), buf->fgbg_color);
+        for (int i = 0; i < args.count; i++)
+        {
+          uint32_t n, m10;
+          sscanf(args.args[i], "%d", &n);
+          m10 = n % 10;
+
+          if (n == 0)
+            buf->fgbg_color = buf->default_fgbg;
+          else if (m10 <= 7 && n - m10 == 30)
+            buf->fgbg_color = (uint64_t) VTermANSIColors[n % 10] << 32 | (buf->fgbg_color & 0xffffffff);
+          else if (m10 <= 7 && n - m10 == 40)
+            buf->fgbg_color = (uint64_t) (buf->fgbg_color & ((uint64_t) 0xffffffff << 32)) | VTermANSIColors[n % 10];
+        }
       }
 
       goto success;
