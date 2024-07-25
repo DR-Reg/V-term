@@ -113,9 +113,13 @@ bool VTermSpawnPTY(VTermPTY *);
  * returned */
 bool VTermUpdate(VTerm *);
 bool VTermDraw(VTerm *);
+bool VTermDrawText(VTermDataBuffer *);
 bool VTermSendInput(VTerm *);
 
+
 bool VTermExecuteEscapeCode(VTermDataBuffer *, char *, int);
+
+bool VTermIsTextMode(VTermDataBuffer *);
 
 void VTermIncreaseFontSize(VTerm *, int32_t);
 void VTermEnsureResolution(VTerm *);

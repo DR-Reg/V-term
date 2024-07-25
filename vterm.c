@@ -561,55 +561,80 @@ bool VTermUpdate(VTerm *vt)
   return true;
 }
 
+bool VTermIsTextMode(VTermDataBuffer *buf)
+{
+  switch (buf->mode)
+  {
+    case VTERM_MODE_MONOCHROME_TEXT_40_25:
+    case VTERM_MODE_COLOR_TEXT_40_25: 
+    case VTERM_MODE_MONOCHROME_TEXT_80_25:
+    case VTERM_MODE_COLOR_TEXT_80_25:
+      return true;
+
+    default:
+      return false;
+  }
+}
+
+bool VTermDrawText(VTermDataBuffer *buf)
+/* Adapted from Raylib's DrawTextEx */
+{
+  int textLineSpacing = 0;
+  Font font = buf->font;
+  Vector2 position = (Vector2){0, 0};
+  float fontSize = buf->font_size;
+  float spacing = 0;
+
+  uint32_t default_bg = UNPACK_bg(buf->default_fgbg);
+  if (font.texture.id == 0) font = GetFontDefault();  // Security check in case of not valid font
+
+  float textOffsetY = 0;          // Offset between lines (on linebreak '\n')
+  float textOffsetX = 0.0f;       // Offset X to next character to draw
+
+  float scaleFactor = fontSize/font.baseSize;         // Character quad scaling factor
+
+  for (int i = 0; i < buf->buffer_size;)
+  {
+    // Get next codepoint from byte string and glyph index in font
+    if (buf->data[i] == 0) { i++; continue; }
+    if (buf->row * buf->column_count + buf->col < i) break;
+    int codepointByteCount = 0;
+    int codepoint = GetCodepointNext((const char *)(buf->data + i), &codepointByteCount);
+    uint32_t fg = UNPACK_fg(buf->fgbg_colors[i]);
+    uint32_t bg = UNPACK_bg(buf->fgbg_colors[i]);
+    Color tint = *(Color*)&fg;
+    Color back = *(Color*)&bg;
+    int index = GetGlyphIndex(font, codepoint);
+
+    if (i != 0 && i % buf->column_count == 0)
+    {
+      textOffsetY += (fontSize + textLineSpacing);
+      textOffsetX = 0.0f;
+    }
+
+
+    Vector2 where = (Vector2){ position.x + textOffsetX, position.y + textOffsetY };
+    if (bg != default_bg)
+      DrawRectangle(where.x, where.y, fontSize / 2, fontSize, back);
+    if ((codepoint != ' ') && (codepoint != '\t'))
+    {
+      DrawTextCodepoint(font, codepoint, where, fontSize, tint);
+    }
+
+    if (font.glyphs[index].advanceX == 0) textOffsetX += ((float)font.recs[index].width*scaleFactor + spacing);
+    else textOffsetX += ((float)font.glyphs[index].advanceX*scaleFactor + spacing);
+    i += codepointByteCount;   // Move text bytes counter to next codepoint
+  }
+  return true;
+}
+
 bool VTermDraw(VTerm *vt)
 {
   VTermDataBuffer *buf = VTermGetCurrentBuffer(vt);
   // TODO: check if pty mode or not
-  int last_row_x = 0;
-  for (uint16_t row = 0; row < buf->row_count; row++)
-  {
-    // char row_buf[buf->column_count + 1];
-    // memset(row_buf, 0, buf->column_count + 1);
-    // printf("row %d: 0x", row);
-    uint16_t col;
-    char ch_buf[2] = "\0\0";
-
-    // TODO custom copy of drawtextex and move back to row drawing
-    // for a good performance
-    for (col = 0; col < buf->column_count; col++)
-    {
-      // row_buf[col] = buf->data[row * buf->column_count + col];
-      uint32_t bufix = row * buf->column_count + col;
-      ch_buf[0] = buf->data[bufix];
-      // treats pointer as Color size and starts at fg so ok
-      uint32_t fg = UNPACK_fg(buf->fgbg_colors[bufix]);
-      // printf("%8x\n", *(uint32_t*)(buf->fgbg_colors + bufix));
-      // Color fg = *(Color *)((uint32_t *)&(buf->fgbg_color) + 1);
-      DrawTextEx(buf->font, ch_buf, 
-                 (Vector2){col * buf->font_size / 2, row*buf->font_size}, 
-                 buf->font_size, 0, 
-                 *(Color*)&fg 
-      );
-    }
-    // row_buf[buf->column_count] = 0;
-    // printf(" | '%s'\n", row_buf);
-    // DrawText(row_buf, 0, row * buf->font_size, buf->font_size, RAYWHITE);
-    // 
-    
-    
-    
-    
-    
-
-    // TODO: when custom fonts, use measureEx
-    // For now as using Px437, can assume y = 2x
-    if (row == buf->row)
-      last_row_x = buf->col * buf->font_size / 2;
-      // last_row_x = MeasureText(row_buf, buf->font_size);
-  }
-
+  VTermDrawText(buf);
   // draw cursor:
-  DrawRectangle(last_row_x, buf->row * buf->font_size, buf->font_size / 2, buf->font_size, RAYWHITE);
+  DrawRectangle(buf->col * buf->font_size / 2, buf->row * buf->font_size, buf->font_size / 2, buf->font_size, RAYWHITE);
 
   return true;
 }
