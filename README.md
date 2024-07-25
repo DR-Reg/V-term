@@ -15,7 +15,7 @@ This is a personal project and work in progress (see TODO below)
     - [x] Wrapping
     - [ ] Escape codes (See [here](https://www.xfree86.org/current/ctlseqs.html) and [here](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html))
         - [ ] Colors
-            - [ ] 3 bit
+            - [x] 3 bit
             - [ ] 8 bit
             - [ ] Full color
 - [ ] gfx modes (see [here](https://prirai.github.io/blogs/ansi-esc/#screen-modes))
@@ -25,5 +25,7 @@ This is a personal project and work in progress (see TODO below)
     - [ ] Switching buffers (change `current_buffer`)
 - [ ] Other todos for future
     - [ ] Improve performance
-        - [ ] Call `DrawText` once per frame (custom `DrawText` function to account for color both bg and fg)
+        - [x] Call `DrawText` once per frame (custom `DrawText` function to account for color both bg and fg)
+            - Did not improve performance significantly... instead generate one texture with all the text per frame?
+        - [ ] For background colors, having many on screen makes it unperformant, fix this.
         - [ ] Multithreading ?
