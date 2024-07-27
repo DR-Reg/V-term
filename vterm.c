@@ -28,7 +28,12 @@ bool VTermSpawnPTY(VTermPTY *pty) {
   return false;
 }
 
-bool VTermInitPTY(VTermPTY *pty) {
+bool VTermInitPTY(VTermPTY **pty_ptr) {
+  VTermPTY *pty = *pty_ptr;
+  /* PTY should NULL or free'd if initialised */
+  if (pty != NULL)
+    free(*pty_ptr);
+  pty = *pty_ptr = malloc(sizeof(VTermPTY));
   /* reading and writing, opened pt is not the controlling terminal: */
   pty->master = posix_openpt(O_RDWR | O_NOCTTY);
 
@@ -112,7 +117,7 @@ bool VTermInit(VTerm *vt, const uint16_t width, const uint16_t height, VTermMode
   vt->pixel_width = width;
   vt->pixel_height = height;
 
-  if (!VTermInitBuffer(vt, 0, mode)) {
+  if (!VTermInitBuffer(vt->buffers, mode)) {
     VTermError("VTermInitBuffer(vt, 0, mode)");
     return false;
   }
@@ -124,26 +129,39 @@ bool VTermInit(VTerm *vt, const uint16_t width, const uint16_t height, VTermMode
   return true;
 }
 
-bool VTermInitBuffer(VTerm *vt, uint16_t bix, VTermMode mode) {
-  if (bix >= MAX_BUFFER_COUNT) {
-    VTermError("bix >= MAX_BUFFER_COUNT");
+bool VTermInitBufferFrom(VTermDataBuffer **dest, VTermDataBuffer *src)
+{
+  if (!_VTermInitBuffer(dest, src->mode, false))
+  {
+    VTermError("_VTermInitBuffer(dest, src->mode, false)");
     return false;
   }
+  (*dest)->pty = src->pty;
+  return true;
+}
 
-  if (vt->buffers[bix] != NULL)
-    VTermCloseBuffer(vt->buffers[bix]);
+bool VTermInitBuffer(VTermDataBuffer **buf_ptr, VTermMode mode)
+{
+  return _VTermInitBuffer(buf_ptr, mode, true);
+}
 
-  vt->buffers[bix] = (VTermDataBuffer *)malloc(sizeof(VTermDataBuffer));
 
-  VTermDataBuffer *buf = vt->buffers[bix];
+bool _VTermInitBuffer(VTermDataBuffer **buf_ptr, VTermMode mode, bool pty) {
+  VTermDataBuffer *buf = *buf_ptr;
+  if (buf != NULL)
+    VTermCloseBuffer(buf);
+
+  buf = *buf_ptr = (VTermDataBuffer *)malloc(sizeof(VTermDataBuffer));
+
   buf->mode = mode;
   buf->font_size = 20;
 
-  bool pty;
 
   buf->col = 0;
   buf->row = 0;
   buf->font = VTermTextFonts[buf->mode];
+  buf->alt_buffer = NULL;
+  buf->pty = NULL;      // Inited below if needed
   buf->default_fgbg = ((uint64_t)*(uint32_t*)&RAYWHITE << 32) | *(uint32_t*)&DARKGRAY;
   printf("%8x : ", *(uint32_t*)&RAYWHITE);
   printf("DEFAULT: %2x%2x%2x%2x%2x%2x%2x%2x = %16llx\n", 
@@ -165,7 +183,6 @@ bool VTermInitBuffer(VTerm *vt, uint16_t bix, VTermMode mode) {
       buf->buffer_size = 40 * 25;
       buf->column_count = 40;
       buf->row_count = 25;
-      pty = true;
       break;
 
     case VTERM_MODE_COLOR_TEXT_40_25:
@@ -192,11 +209,11 @@ bool VTermInitBuffer(VTerm *vt, uint16_t bix, VTermMode mode) {
   buf->fgbg_colors = (uint64_t *)calloc(buf->buffer_size, sizeof(uint64_t));
   if (pty) {
     if (!VTermInitPTY(&buf->pty)) {
-      VTermError("VTermInitPTY(&buf->pty)");
+      VTermError("VTermInitPTY(buf->pty)");
       return false;
     }
-    if (!VTermSpawnPTY(&buf->pty)) {
-      VTermError("VTermSpawnPTY(&buf->pty)");
+    if (!VTermSpawnPTY(buf->pty)) {
+      VTermError("VTermSpawnPTY(buf->pty)");
       return false;
     }
   }
@@ -216,7 +233,7 @@ void VTermGetEscapeCodeArgs(VTermEscapeArgs *args, char *argstr, int arglen)
   int i, argix = 0, curr_argix = 0;
   char ch;
   args->count = 1; // o/w arglen <= 0 above
-  printf("ArgStr to parse: %s\n", argstr);
+  // printf("ArgStr to parse: %s\n", argstr);
   for (i = 0; i < arglen; i++)
   {
     ch = argstr[i];
@@ -306,16 +323,76 @@ bool VTermResetBufferData(VTermDataBuffer *buf, uint16_t row, uint16_t col, VTer
   return true;
 }
 
-bool VTermExecuteEscapeCode(VTermDataBuffer *buf, char *escape, int escape_len)
+// str at least 64
+void VTermModeToStr(VTermMode mode, char *str)
 {
+  switch (mode)
+  {
+  case VTERM_MODE_MONOCHROME_TEXT_40_25:
+    strcpy(str, "VTERM_MODE_MONOCHROME_TEXT_40_25");
+    break;
+  case VTERM_MODE_COLOR_TEXT_40_25:
+    strcpy(str, "VTERM_MODE_COLOR_TEXT_40_25");
+    break;
+  case VTERM_MODE_MONOCHROME_TEXT_80_25:
+    strcpy(str, "VTERM_MODE_MONOCHROME_TEXT_80_25");
+    break;
+  case VTERM_MODE_COLOR_TEXT_80_25:
+    strcpy(str, "VTERM_MODE_COLOR_TEXT_80_25");
+    break;
+  case VTERM_MODE_4COLOR_GRAPHICS_300_200:
+    strcpy(str, "VTERM_MODE_4COLOR_GRAPHICS_300_200");
+    break;
+  case VTERM_MODE_MONOCHROME_GRAPHICS_300_200:
+    strcpy(str, "VTERM_MODE_MONOCHROME_GRAPHICS_300_200");
+    break;
+  case VTERM_MODE_MONOCHROME_GRAPHICS_640_200:
+    strcpy(str, "VTERM_MODE_MONOCHROME_GRAPHICS_640_200");
+    break;
+
+  case VTERM_MODE_COLOR_GRAPHICS_320_200:
+    strcpy(str, "VTERM_MODE_COLOR_GRAPHICS_320_200");
+    break;
+  case VTERM_MODE_16COLOR_GRAPHICS_640_200:
+    strcpy(str, "VTERM_MODE_16COLOR_GRAPHICS_640_200");
+    break;   
+  case VTERM_MODE_MONOCHROME_GRAPHICS_640_350:
+    strcpy(str, "VTERM_MODE_MONOCHROME_GRAPHICS_640_350");
+    break;
+  case VTERM_MODE_16COLOR_GRAPHICS_640_350:
+    strcpy(str, "VTERM_MODE_16COLOR_GRAPHICS_640_350");
+    break;
+  case VTERM_MODE_MONOCHROME_GRAPHICS_640_480:
+    strcpy(str, "VTERM_MODE_MONOCHROME_GRAPHICS_640_480");
+    break;
+  case VTERM_MODE_16COLOR_GRAPHICS_640_480:
+    strcpy(str, "VTERM_MODE_16COLOR_GRAPHICS_640_480");
+    break;
+  case VTERM_MODE_256COLOR_GRAPHICS_320_200:
+    strcpy(str, "VTERM_MODE_256COLOR_GRAPHICS_320_200");
+    break;
+  case VTERM_MODE_FULL_COLOR_MAX_RES:
+    strcpy(str, "VTERM_MODE_FULL_COLOR_MAX_RES");
+    break;
+    default:
+    strcpy(str, "Unknown mode");
+  }
+}
+
+bool VTermExecuteEscapeCode(VTerm *vt, char *escape, int escape_len)
+{
+  VTermDataBuffer *buf = VTermGetCurrentBuffer(vt);
   VTermEscapeArgs args;
   VTermResetBufferDataDir dir;
+
+  VTermGetEscapeCodeArgs(&args, escape, escape_len - 1);
+
+  bool high = false;
   
 
   switch (escape[escape_len - 1])
   {
     case 'H':
-      VTermGetEscapeCodeArgs(&args, escape, escape_len - 1);
       if (args.count == 0)
       {
         buf->row = 0;
@@ -340,9 +417,6 @@ bool VTermExecuteEscapeCode(VTermDataBuffer *buf, char *escape, int escape_len)
       if (escape[0] == '?')
         goto success;
 
-      VTermGetEscapeCodeArgs(&args, escape, escape_len - 1);
-
-
       if (args.count == 0) // default: erase below
         dir = VTERM_RESET_BUFFER_DATA_DOWN;
       else if (args.args[0][0] == '0')
@@ -366,8 +440,6 @@ bool VTermExecuteEscapeCode(VTermDataBuffer *buf, char *escape, int escape_len)
       if (escape[0] == '?')
         goto success;
 
-      VTermGetEscapeCodeArgs(&args, escape, escape_len - 1);
-
       if (args.count == 0) // default: erase below
         dir = VTERM_RESET_BUFFER_DATA_FORWARDS;
       else if (args.args[0][0] == '0')
@@ -384,18 +456,44 @@ bool VTermExecuteEscapeCode(VTermDataBuffer *buf, char *escape, int escape_len)
       }
       goto success;
     case 'h':
+      high = true;
     case 'l':
-      // VTermGetEscapeCodeArgs(&args, escape + 1, escape_len - 2);
-      switch (escape[0])
+      if (escape[0] == '?')
       {
-        // TODO
+        VTermGetEscapeCodeArgs(&args, escape + 1, escape_len - 2);
+        if (args.count > 0)
+        {
+          uint32_t n;
+          sscanf(args.args[0], "%d", &n);
+          switch (n)
+          {
+            case 1047:
+            case 1049:
+              if (high)
+              {
+                if (!VTermInAlternateBuffer(vt))
+                {
+                  VTermInitBufferFrom((VTermDataBuffer **)&buf->alt_buffer, buf);
+                  char str[64];
+                  VTermModeToStr(((VTermDataBuffer *)buf->alt_buffer)->mode, str);
+                  printf("Type of altbuffer: %s\n", str);
+                }
+              }
+              else
+              {
+                if (VTermInAlternateBuffer(vt))
+                {
+                  // buf is the alt-buffer!
+                  VTermCloseBuffer((VTermDataBuffer *)buf);
+                  VTermDataBuffer *pbuf = VTermGetCurrentPrincipalBuffer(vt);
+                  pbuf->alt_buffer = NULL;
+                }
+              }
+          }
+        }
       }
       goto success;
     case 'm':
-      VTermGetEscapeCodeArgs(&args, escape, escape_len - 1);
-      VTermPrintEscapeCode(escape, &args);
-
-      // todo
       if (args.count > 0)
       {
         for (int i = 0; i < args.count; i++)
@@ -418,8 +516,7 @@ bool VTermExecuteEscapeCode(VTermDataBuffer *buf, char *escape, int escape_len)
       return false;
   }
 success:
-  // VTermGetEscapeCodeArgs(&args, escape, escape_len - 1);
-  // VTermPrintEscapeCode(escape, &args);
+  VTermPrintEscapeCode(escape, &args);
   return true;
 }
 
@@ -428,7 +525,7 @@ bool VTermUpdate(VTerm *vt)
   // TODO: check whether pty mode or not
   // TODO: key inputs
   VTermDataBuffer *buf = VTermGetCurrentBuffer(vt);
-  VTermPTY *pty = &buf->pty;
+  VTermPTY *pty = buf->pty;
   char char_buf[1];
 
   /* make sure tv is not NULL, as o/w select blocks indefinitely */
@@ -465,13 +562,13 @@ bool VTermUpdate(VTerm *vt)
 
     // TODO: check for special characters
     //
-    printf("Received: '%c' = #%d\tPWrap: %s\tPEsc: %s\tPCRAW: %s\tInEsc: %s\n",
-           char_buf[0], char_buf[0],
-           previousWasWrap ? "true" : "false",
-           previousWasEscape ? "true" : "false",
-           previousWasCRAfterWrap ? "true" : "false",
-           currentEscapeIx >= 0 ? "true" : "false"
-    );
+    // printf("Received: '%c' = #%d\tPWrap: %s\tPEsc: %s\tPCRAW: %s\tInEsc: %s\n",
+    //        char_buf[0], char_buf[0],
+    //        previousWasWrap ? "true" : "false",
+    //        previousWasEscape ? "true" : "false",
+    //        previousWasCRAfterWrap ? "true" : "false",
+    //        currentEscapeIx >= 0 ? "true" : "false"
+    // );
     // printf("Received %d\n", char_buf[0]);
     switch (char_buf[0])
     {
@@ -518,7 +615,7 @@ bool VTermUpdate(VTerm *vt)
             currentEscapeIx = -1;
           else {
             currentEscapeBuf[currentEscapeIx++] = char_buf[0];
-            if (VTermExecuteEscapeCode(buf, currentEscapeBuf, currentEscapeIx))
+            if (VTermExecuteEscapeCode(vt, currentEscapeBuf, currentEscapeIx))
             {
               memset(currentEscapeBuf, 0, 32);
               currentEscapeIx = -1;
@@ -542,7 +639,6 @@ bool VTermUpdate(VTerm *vt)
       buf->col = 0;
       buf->row++;
       previousWasWrap = true;
-      printf("WRAP\n");
     } else {
       previousWasWrap = false;
     }
@@ -599,7 +695,6 @@ bool VTermDrawText(VTermDataBuffer *buf)
   {
     // Get next codepoint from byte string and glyph index in font
     if (buf->data[i] == 0) { i++; continue; }
-    if (buf->row * buf->column_count + buf->col < i) break;
     int codepointByteCount = 0;
     int codepoint = GetCodepointNext((const char *)(buf->data + i), &codepointByteCount);
     uint32_t fg = UNPACK_fg(buf->fgbg_colors[i]);
@@ -644,7 +739,7 @@ bool VTermDraw(VTerm *vt)
 bool VTermSendInput(VTerm *vt) {
   int ch, kc;
   VTermDataBuffer *buf = VTermGetCurrentBuffer(vt);
-  int master = buf->pty.master;
+  int master = buf->pty->master;
   while ((ch = GetCharPressed()))
   {
     // printf("Unicode %d pressed: '%c'\n", ch, *(char *)&ch);
@@ -682,7 +777,23 @@ VTermDataBuffer *VTermGetCurrentBuffer(VTerm *vt)
   {
     VTermError("bix >= MAX_BUFFER_COUNT");
   }
+  if (vt->buffers[vt->buffer_ix]->alt_buffer == NULL)
+    return vt->buffers[vt->buffer_ix];
+  return vt->buffers[vt->buffer_ix]->alt_buffer;
+}
+
+VTermDataBuffer *VTermGetCurrentPrincipalBuffer(VTerm *vt)
+{
+  if (vt->buffer_ix >= MAX_BUFFER_COUNT)
+  {
+    VTermError("bix >= MAX_BUFFER_COUNT");
+  }
   return vt->buffers[vt->buffer_ix];
+}
+
+bool VTermInAlternateBuffer(VTerm *vt)
+{
+  return VTermGetCurrentPrincipalBuffer(vt)->alt_buffer != NULL;
 }
 
 void VTermEnsureResolution(VTerm *vt)
@@ -694,3 +805,4 @@ void VTermEnsureResolution(VTerm *vt)
   vt->pixel_height = buf->row_count * buf->font_size;
   SetWindowSize(vt->pixel_width, vt->pixel_height);
 }
+

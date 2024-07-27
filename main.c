@@ -45,7 +45,16 @@ int main() {
     if (!VTermDraw(&vt))
       return 2;
 
+    DrawRectangle(vt.pixel_width - 100, 0, 100, 40, DARKGRAY);
     DrawFPS(vt.pixel_width - 100, 0);
+    bool alt = VTermInAlternateBuffer(&vt);
+    DrawText(
+      (alt ? "ALT" : "MAIN"),
+      vt.pixel_width - 100,
+      20,
+      20,
+      (alt ? RED : GREEN)
+    );
     EndDrawing();
   }
 

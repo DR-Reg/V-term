@@ -81,7 +81,7 @@ typedef struct {
   uint16_t row_count;
   uint16_t col;
   uint16_t row;
-  VTermPTY pty;   // pseudo-terminal
+  VTermPTY *pty;  // pseudo-terminal
   VTermMode mode; // Mode this buffer is using
   size_t buffer_size;
   uint16_t font_size;
@@ -93,6 +93,7 @@ typedef struct {
   uint64_t default_fgbg;
 
   Font font;
+  void *alt_buffer;
 } VTermDataBuffer;
 
 typedef struct {
@@ -106,7 +107,7 @@ typedef struct {
 
 bool VTermInit(VTerm *, const uint16_t, const uint16_t, VTermMode);
 bool VTermSpawn(VTerm *);
-bool VTermInitPTY(VTermPTY *);
+bool VTermInitPTY(VTermPTY **);
 bool VTermSpawnPTY(VTermPTY *);
 
 /*   TODO: Set global variable VTERM_ERROR or something which is set if err
@@ -117,14 +118,17 @@ bool VTermDrawText(VTermDataBuffer *);
 bool VTermSendInput(VTerm *);
 
 
-bool VTermExecuteEscapeCode(VTermDataBuffer *, char *, int);
+bool VTermExecuteEscapeCode(VTerm *, char *, int);
 
 bool VTermIsTextMode(VTermDataBuffer *);
 
 void VTermIncreaseFontSize(VTerm *, int32_t);
 void VTermEnsureResolution(VTerm *);
+void VTermModeToStr(VTermMode, char *);
 
-bool VTermInitBuffer(VTerm *, uint16_t, VTermMode);
+bool _VTermInitBuffer(VTermDataBuffer **, VTermMode, bool);
+bool VTermInitBuffer(VTermDataBuffer **, VTermMode);
+bool VTermInitBufferFrom(VTermDataBuffer **, VTermDataBuffer *);
 void VTermCloseBuffer(VTermDataBuffer *);
 
 typedef enum {
@@ -138,4 +142,7 @@ typedef enum {
 bool VTermResetBufferData(VTermDataBuffer *, uint16_t, uint16_t, VTermResetBufferDataDir);
 
 VTermDataBuffer *VTermGetCurrentBuffer(VTerm *);
+VTermDataBuffer *VTermGetCurrentPrincipalBuffer(VTerm *);
+bool VTermInAlternateBuffer(VTerm *);
+
 #endif
